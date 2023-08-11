@@ -1,0 +1,34 @@
+scripts:
+  download_pdf: scripts/stage_scripts/load_raw.py
+  extract_text: scripts/stage_scripts/extract_text.py
+  split_data: scripts/stage_scripts/make_splits.py
+  sentenize: scripts/stage_scripts/sentenize.py
+  get_extra_words: scripts/stage_scripts/collect_new_tokens.py
+  expand_model_vocab: scripts/stage_scripts/expand_model_vocab.py
+  finetune: scripts/stage_scripts/finetune.py
+
+parsing:
+  query: "nlp"
+  max_results: 20
+
+paths:
+  pdf_dir: data/raw/pdf
+  txt_dir: data/processed/txt
+  splits_path: data/processed/train_test_split.json
+  train_sents: data/processed/train.json
+  test_sents: data/processed/test.json
+  extra_words: data/processed/extra_words.json
+  expanded_vocab_model: models/expanded_vocab_model
+  finetuned_model: models/finetuned_mlm_model
+
+training:
+  test_size: 0.3
+  min_sent_words: 10
+  source_bert: "prajjwal1/bert-tiny"
+  new_word_threshold: 35
+  finetuning:
+    batch_size: 5
+    lr: 1e-5
+    mlm_probability: 0.15
+    num_epochs: 2
+    shedular_name: "linear"

@@ -1,0 +1,76 @@
+vars:
+  - params.yaml
+
+stages:
+  download:
+    cmd: python ${scripts.download_pdf} --query ${parsing.query} --max_results ${parsing.max_results}
+    params:
+      - parsing.query
+      - parsing.max_results
+      - paths.pdf_dir
+    deps:
+      - src/data/parsing/process_paper.py
+    outs:
+      - ${paths.pdf_dir}
+
+  extract:
+    cmd: python ${scripts.extract_text}
+    deps:
+      - ${paths.pdf_dir}
+      - src/data/parsing/process_paper.py
+      - src/data/parsing/clean_text.py
+    outs:
+      - ${paths.txt_dir}
+
+  train_test_split:
+    cmd: python ${scripts.split_data}
+    deps:
+      - ${paths.txt_dir}
+    params:
+      - training.test_size
+    outs:
+      - ${paths.splits_path}
+
+  prepare_corpus:
+    cmd: python ${scripts.sentenize}
+    deps:
+      - ${paths.txt_dir}
+      - ${paths.splits_path}
+      - src/data/load_dataset.py
+    params:
+      - training.min_sent_words
+    outs:
+      - ${paths.train_sents}
+      - ${paths.test_sents}
+
+  get_extra_words:
+    cmd: python ${scripts.get_extra_words}
+    deps:
+      - ${paths.train_sents}
+      - src/models/finetune_mlm/collect_extra_tokens.py
+    params:
+      - training.source_bert
+      - training.new_word_threshold
+    outs:
+      - ${paths.extra_words}
+
+  expand_model_vocab:
+    cmd: python ${scripts.expand_model_vocab}
+    params:
+      - training.source_bert
+    deps:
+      - ${paths.extra_words}
+      - src/models/finetune_mlm/expand_vocab.py
+    outs:
+      - ${paths.expanded_vocab_model}
+
+  finetune:
+    cmd: python ${scripts.finetune}
+    params:
+        - training.finetuning
+    deps:
+      - ${paths.train_sents}
+      - ${paths.expanded_vocab_model}
+      - src/models/finetune_mlm/finetune.py
+    outs:
+      - ${paths.finetuned_model}

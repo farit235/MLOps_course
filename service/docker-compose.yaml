@@ -1,0 +1,13 @@
+version: '2.1'
+services:
+  task-generator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    cap_add:
+      - SYS_PTRACE
+    restart: unless-stopped
+    ports:
+      - 80:80
+    #command:
+    #  ls

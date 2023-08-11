@@ -1,0 +1,111 @@
+schema: '2.0'
+stages:
+  download:
+    cmd: python scripts/stage_scripts/load_raw.py
+    params:
+      params.yaml:
+        parsing.max_results: 20
+        parsing.query: nlp
+        paths.pdf_dir: data/raw/pdf
+    outs:
+    - path: data/raw/pdf
+      md5: ef29b3679f3488958a19dd4d8cba0f44.dir
+      size: 24174724
+      nfiles: 20
+  extract:
+    cmd: python scripts/stage_scripts/extract_text.py
+    deps:
+    - path: data/raw/pdf
+      md5: ef29b3679f3488958a19dd4d8cba0f44.dir
+      size: 24174724
+      nfiles: 20
+    outs:
+    - path: data/processed/txt
+      md5: f4450fe665060a27030e29bf03e64ec1.dir
+      size: 1855519
+      nfiles: 20
+  train_test_split:
+    cmd: python scripts/stage_scripts/make_splits.py
+    deps:
+    - path: data/processed/txt
+      md5: f4450fe665060a27030e29bf03e64ec1.dir
+      size: 1855519
+      nfiles: 20
+    params:
+      params.yaml:
+        training.test_size: 0.3
+    outs:
+    - path: data/processed/train_test_split.json
+      md5: c1ac803d3237dfeffa8cc4fcfb670938
+      size: 1718
+  prepare_corpus:
+    cmd: python scripts/stage_scripts/sentenize.py
+    deps:
+    - path: data/processed/train_test_split.json
+      md5: c1ac803d3237dfeffa8cc4fcfb670938
+      size: 1718
+    - path: data/processed/txt
+      md5: f4450fe665060a27030e29bf03e64ec1.dir
+      size: 1855519
+      nfiles: 20
+    params:
+      params.yaml:
+        training.min_sent_words: 10
+    outs:
+    - path: data/processed/test.json
+      md5: 3b3d4d68a23e05458967b3cf911587fe
+      size: 342678
+    - path: data/processed/train.json
+      md5: 1cf91d18915ca853927a9571af402a44
+      size: 1366536
+  get_extra_words:
+    cmd: python scripts/stage_scripts/collect_new_tokens.py
+    deps:
+    - path: data/processed/train.json
+      md5: 1cf91d18915ca853927a9571af402a44
+      size: 1366536
+    params:
+      params.yaml:
+        training.new_word_threshold: 35
+        training.source_bert: prajjwal1/bert-tiny
+    outs:
+    - path: data/processed/extra_words.json
+      md5: f5be64c55061c4e9b72bb779813e0031
+      size: 989
+  expand_model_vocab:
+    cmd: python scripts/stage_scripts/expand_model_vocab.py
+    deps:
+    - path: data/processed/extra_words.json
+      md5: f5be64c55061c4e9b72bb779813e0031
+      size: 989
+    params:
+      params.yaml:
+        training.source_bert: prajjwal1/bert-tiny
+    outs:
+    - path: models/expanded_vocab_model
+      md5: 45a3f026a7584130d46844ff78d43809.dir
+      size: 17836744
+      nfiles: 5
+  finetune:
+    cmd: python scripts/stage_scripts/finetune.py
+    deps:
+    - path: data/processed/train.json
+      md5: 1cf91d18915ca853927a9571af402a44
+      size: 1366536
+    - path: models/expanded_vocab_model
+      md5: 45a3f026a7584130d46844ff78d43809.dir
+      size: 17836744
+      nfiles: 5
+    params:
+      params.yaml:
+        training.finetuning:
+          batchg_size: 5
+          lr: 1e-05
+          mlm_probability: 0.15
+          num_epochs: 2
+          shedular_name: linear
+    outs:
+    - path: models/finetuned_mlm_model
+      md5: 878c27fce2e1c19196a667a25dcfb91a.dir
+      size: 17961569
+      nfiles: 5
